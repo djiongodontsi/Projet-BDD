@@ -1,4 +1,4 @@
-// creation de la base de données
+-- creation de la base de données
 CREATE DATABASE `adam_frere_djiongo_dany_merbah_yanis_malblanc_joacquim` 
 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -173,7 +173,7 @@ CREATE TABLE `renouvellement` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
-// données 
+-- données 
 INSERT INTO `specialite` (`id_specialite`, `nom`) VALUES
 (1, 'Informatique'), (2, 'Mathematiques'), (3, 'Business');
 
@@ -333,9 +333,9 @@ GROUP BY e.id_eleve, e.nom, c.id_cours, c.nom
 HAVING AVG(n.valeur) > 10
 ORDER BY moyenne DESC;
 
---Ajouter des données :
+-- Ajouter des données :
 -- Ajouter un nouveau prof : 
-INSERT INTO prof (nom, email, age) VALUES ('Martin', 'martin@ecole.fr', 42);
+INSERT INTO prof (nom, email ) VALUES ('Martin', 'martin@ecole.fr');
 -- Ajouter un nouveau cours :
 INSERT INTO cours (nom, niveau, id_specialite) VALUES ('Réseaux avancés', 3, 2);
 -- Ajouter un nouvel élève avec un dossier qui lui correspond
