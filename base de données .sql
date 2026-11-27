@@ -330,8 +330,13 @@ UPDATE prof SET age = 38 WHERE nom = 'Malblanc';
 UPDATE prof SET age = 42 WHERE nom = 'Martin';
 
 
-COMMIT;
+
+
+
+
 -- Lecture de données : 
+
+
 -- Liste des moyenne de chaque eleve de chaque cours :
 SELECT 
     c.nom AS Nom_cours,
@@ -345,8 +350,10 @@ GROUP BY
     c.id_cours, c.nom, e.id_eleve, e.nom
 ORDER BY 
     c.nom ASC, e.nom ASC;	
+
+
 -- Liste des moyennes supérieur à 10 de chaque élève (nom), dans chaque cours (nom) dans l’ordre décroissant (bonus)
--- Requete
+
 SELECT 
     e.nom           AS nom_eleve,
     c.nom           AS nom_cours,
@@ -357,6 +364,14 @@ JOIN cours c ON c.id_cours = n.id_cours
 GROUP BY e.id_eleve, e.nom, c.id_cours, c.nom
 HAVING AVG(n.valeur) > 10
 ORDER BY moyenne DESC;
+
+------------------ Requetes SQL pour la lecture de données ------------------
+
+---Lecture de données  
+
+
+
+
 
 
 -- Liste de tous les élèves (nom et âge)
