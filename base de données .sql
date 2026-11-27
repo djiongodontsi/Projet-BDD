@@ -171,6 +171,22 @@ CREATE TABLE `renouvellement` (
   PRIMARY KEY (`id_renouvellement`),
   CONSTRAINT `fk_renouv_pret` FOREIGN KEY (`id_pret`) REFERENCES `pret` (`id_pret`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- Table eleve_cours
+CREATE TABLE eleve_cours (
+  id_eleve INT NOT NULL,
+  id_cours INT NOT NULL,
+  dateInscription DATE NOT NULL DEFAULT (CURDATE()),
+  PRIMARY KEY (id_eleve, id_cours),
+  CONSTRAINT fk_ec_eleve FOREIGN KEY (id_eleve) REFERENCES eleve(id_eleve) ON DELETE CASCADE,
+  CONSTRAINT fk_ec_cours FOREIGN KEY (id_cours) REFERENCES cours(id_cours) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Remplir avec les inscriptions logiques (élèves de promotion 2 → cours de promo 2)
+INSERT INTO eleve_cours (id_eleve, id_cours)
+SELECT e.id_eleve, ic.id_cours
+FROM eleve e
+JOIN instance_cours ic ON ic.id_promotion = e.id_promotion
+GROUP BY e.id_eleve, ic.id_cours;
 
 
 -- données 
@@ -304,6 +320,15 @@ INSERT INTO `renouvellement` (`id_renouvellement`, `dateRenouvellement`, `nouvel
 (1, '2026-11-14', '2026-11-30', 2),
 (2, '2026-11-22', '2026-12-07', 5),
 (3, '2026-11-24', '2026-12-12', 8);
+-- Résolution des problèmes 
+-- Ajouter la colonne
+ALTER TABLE prof ADD COLUMN age INT NOT NULL DEFAULT 30;
+
+-- Mettre à jour les profs existants
+UPDATE prof SET age = 45 WHERE nom = 'Merbah';
+UPDATE prof SET age = 38 WHERE nom = 'Malblanc';
+UPDATE prof SET age = 42 WHERE nom = 'Martin';
+
 
 COMMIT;
 -- Lecture de données : 
@@ -333,11 +358,201 @@ GROUP BY e.id_eleve, e.nom, c.id_cours, c.nom
 HAVING AVG(n.valeur) > 10
 ORDER BY moyenne DESC;
 
--- Ajouter des données :
--- Ajouter un nouveau prof : 
-INSERT INTO prof (nom, email ) VALUES ('Martin', 'martin@ecole.fr');
--- Ajouter un nouveau cours :
-INSERT INTO cours (nom, niveau, id_specialite) VALUES ('Réseaux avancés', 3, 2);
+
+-- Liste de tous les élèves (nom et âge)
+SELECT nom, prenom, age
+FROM eleve;
+
+-- Élèves de plus de 18 ans
+
+SELECT nom, prenom, age
+FROM eleve
+WHERE age > 18;
+
+-- Notes d'un cours précis (id) inférieures à 10
+
+SELECT n.id_note,
+       e.nom,
+       e.prenom,
+       n.valeur
+FROM note n
+JOIN eleve e ON e.id_eleve = n.id_eleve
+WHERE n.id_cours = 1
+  AND n.valeur < 10;
+
+--  Élèves avec leur dossier (infos et avertissements)
+
+SELECT e.nom,
+       e.prenom,
+       d.infos,
+       d.avertissementTravail,
+       d.avertissementComportement
+FROM eleve e
+JOIN dossier d ON d.id_eleve = e.id_eleve;
+Order by e.nom ;
+
+-- Absences avec élève et cours
+
+SELECT e.nom,
+       e.prenom,
+       c.nom    AS cours,
+       a.dureeHeures,
+       a.justificatifAbsence
+FROM absence a
+JOIN eleve e           ON e.id_eleve = a.id_eleve
+JOIN instance_cours ic ON ic.id_instanceCours = a.id_instanceCours
+JOIN cours c           ON c.id_cours = ic.id_cours
+ORDER BY e.nom;
+
+-- Notes d'un élève avec cours et prof corrigée
+
+SELECT e.nom,
+       e.prenom,
+       c.nom       AS cours,
+       p.nom       AS prof_nom,
+       p.prenom    AS prof_prenom,
+       n.valeur
+FROM note n
+JOIN eleve e ON e.id_eleve = n.id_eleve
+JOIN cours c ON c.id_cours = n.id_cours
+JOIN prof  p ON p.id_prof  = n.id_prof
+WHERE e.nom = 'Adam'
+ORDER BY c.nom;
+
+-- Lecture de données 
+
+-- Durée moyenne des absences
+
+SELECT AVG(dureeHeures) AS duree_moyenne_absences
+FROM absence;
+
+-- Durée moyenne des absences avec et sans justificatif
+
+SELECT 
+    AVG(CASE WHEN justificatifAbsence IS NOT NULL THEN dureeHeures END) AS duree_moyenne_avec_justificatif,
+    AVG(CASE WHEN justificatifAbsence IS NULL THEN dureeHeures END) AS duree_moyenne_sans_justificatif
+FROM absence;
+
+-- Somme des absences (durée) d’un élève (nom) triés dans l’ordre croissant
+
+SELECT e.nom,
+       e.prenom,
+       SUM(a.dureeHeures) AS total_absences
+FROM absence a
+JOIN eleve e ON e.id_eleve = a.id_eleve
+WHERE e.nom = 'Adam'
+GROUP BY e.nom, e.prenom
+ORDER BY total_absences ASC;
+
+-- Moyenne des notes de chaque cours (nom) NULL si pas de note
+
+SELECT c.nom AS nom_cours,
+       AVG(n.valeur) AS moyenne_notes
+FROM cours c
+LEFT JOIN note n ON n.id_cours = c.id_cours
+GROUP BY c.nom
+ORDER BY c.nom;
+
+-- Liste des moyennes de chaque élève (nom), dans chaque cours (nom)
+
+SELECT 
+    e.nom           AS nom_eleve,
+    c.nom           AS nom_cours,
+    AVG(n.valeur)   AS moyenne
+FROM note n
+JOIN eleve e ON e.id_eleve = n.id_eleve
+JOIN cours c ON c.id_cours = n.id_cours
+GROUP BY e.id_eleve, e.nom, c.id_cours, c.nom
+ORDER BY e.nom, c.nom;
+
+--Liste des moyennes supérieur à 10 de chaque élève (nom), dans chaque cours (nom) dans l’ordre décroissant (bonus)
+
+SELECT 
+    e.nom           AS nom_eleve,
+    AVG(n.valeur)   AS moyenne
+FROM note n
+JOIN eleve e ON e.id_eleve = n.id_eleve
+JOIN cours c ON c.id_cours = n.id_cours
+GROUP BY e.id_eleve, e.nom, c.id_cours, c.nom
+HAVING AVG(n.valeur) > 10
+ORDER BY AVG(n.valeur) DESC;
+
+-- Ajouter des données 
+
+-- Ajouter un nouveau prof
+INSERT INTO prof (nom, prenom, email, age) VALUES ('Dupuis', 'Claire', 'claire.dupuis@ecole.fr', 35);
+-- Ajouter un nouveau cours
+
+INSERT INTO cours (nom, niveau, id_matiere, id_specialite)
+VALUES ('DevOps', 3, 1, 1);
+
+
 -- Ajouter un nouvel élève avec un dossier qui lui correspond
+INSERT INTO eleve (nom, prenom, date_naissance, email) VALUES ('Martin', 'Jean', '2005-03-15', 'jean.martin@eleve.ecole.fr');
+INSERT INTO dossier (id_eleve, infos, avertissementTravail, avertissementComportement) VALUES (LAST_INSERT_ID(), 'Élève sérieux et travailleur.', NULL, NULL);
 -- Le nouvel élève suit le nouveau cours
+
+
 -- Le nouveau prof donne le nouveau cours
+
+
+-- Modifier des données
+
+-- Modifier l'âge du nouveau prof
+
+UPDATE prof SET age = 36 WHERE nom = 'Dupuis' AND prenom = 'Claire';
+
+-- Modifier la spécialité du nouveau cours
+
+UPDATE cours SET id_specialite = 2 WHERE nom = 'DevOps';
+
+-- Supprimer des données
+
+--Supprimer une note
+
+DELETE FROM note WHERE id_note = 1;
+
+--Supprimer le nouveau prof 
+
+DELETE FROM prof WHERE nom = 'Dupuis' AND prenom = 'Claire';
+
+--Supprimer toutes les absences d’un élève via son nom (bonus)
+
+DELETE a
+FROM absence a
+JOIN eleve e ON e.id_eleve = a.id_eleve
+WHERE e.nom = 'Adam'; 
+
+-- Fonctionnalité supplémentaire
+
+-- Lister tous les livres
+
+SELECT titre, auteur
+FROM livre;
+
+-- Lister les livres d'une matière donnée
+
+SELECT l.titre, l.auteur
+FROM livre l
+JOIN matiere m ON l.id_matiere = m.id_matiere
+WHERE m.nom = 'Programmation';
+
+-- Lister les livres empruntés par un élève donné
+
+SELECT l.titre, l.auteur, p.datePret, p.dateRetourPrevue, p.dateRetourEffective
+FROM livre l
+JOIN pret p ON l.id_livre = p.id_livre
+JOIN carte_bibliotheque cb ON p.id_carteBibliotheque = cb.id_carteBibliotheque
+JOIN eleve e ON cb.id_eleve = e.id_eleve
+WHERE e.nom = 'Adam';
+
+-- Lister les livres actuellement empruntés par un élève donné (dateRetourEffective est NULL)
+
+SELECT l.titre, l.auteur, p.datePret, p.dateRetourPrevue
+FROM livre l
+JOIN pret p ON l.id_livre = p.id_livre
+JOIN carte_bibliotheque cb ON p.id_carteBibliotheque = cb.id_carteBibliotheque
+JOIN eleve e ON cb.id_eleve = e.id_eleve
+WHERE e.nom = 'Adam' AND p.dateRetourEffective IS NULL;
+
+
